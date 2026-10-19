@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cidade de Agentes</title>
+<style>
+  :root{
+    --ceu1:#0b1220; --ceu2:#1b2a4a; --predio:#243456; --predio2:#2e4170;
+    --texto:#e8eefc; --suave:#9fb0d3; --borda:#3a4e7d;
+    --ocioso:#6b7a99; --trabalhando:#4da3ff; --aguardando:#ffb84d;
+    --concluido:#4ade80; --erro:#ff6b6b; --negado:#c084fc;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;min-height:100vh;font-family:system-ui,"Segoe UI",Arial,sans-serif;color:var(--texto);
+    background:linear-gradient(180deg,var(--ceu1),var(--ceu2))}
+  header{padding:24px 16px 4px;text-align:center}
+  h1{margin:0;font-size:1.6rem}
+  header p{margin:6px 0 0;color:var(--suave);font-size:.9rem}
+  #conexao{display:inline-block;margin-top:8px;font-size:.75rem;padding:2px 10px;border-radius:999px;background:#16203a}
+  main{max-width:1040px;margin:0 auto;padding:8px 16px 40px;display:grid;gap:26px}
+  .linha{display:flex;flex-wrap:wrap;gap:16px;justify-content:center;align-items:flex-end}
+  .predio{--cor:var(--ocioso);width:180px;padding:14px;margin-top:18px;position:relative;
+    background:linear-gradient(180deg,var(--predio2),var(--predio));
+    border:2px solid var(--borda);border-radius:4px 4px 0 0;transition:box-shadow .4s}
+  .predio::before{content:"";position:absolute;left:-6px;right:-6px;top:-14px;height:14px;
+    background:var(--borda);border-radius:6px 6px 0 0}
+  .predio.grande{width:300px}
+  .predio h2{margin:0;font-size:1rem}
+  .papel{color:var(--suave);font-size:.78rem;margin-bottom:8px}
+  .janelas{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin:10px 0}
+  .janelas i{height:14px;border-radius:2px;background:#16203a;transition:background .4s}
+  .predio:not([data-estado=ocioso]) .janelas i.l{background:var(--cor)}
+  .predio[data-estado=trabalhando] .janelas i.l{animation:piscar 1.4s infinite;animation-delay:var(--atraso)}
+  @keyframes piscar{50%{opacity:.3}}
+  .predio[data-estado=trabalhando]{--cor:var(--trabalhando);box-shadow:0 0 22px #4da3ff55}
+  .predio[data-estado=aguardando_aprovacao]{--cor:var(--aguardando);box-shadow:0 0 22px #ffb84d66}
+  .predio[data-estado=concluido]{--cor:var(--concluido)}
+  .predio[data-estado=erro]{--cor:var(--erro)}
+  .predio[data-estado=negado]{--cor:var(--negado)}
+  .estado{display:inline-block;padding:3px 10px;border-radius:999px;font-size:.72rem;font-weight:700;
+    background:var(--cor);color:#0b1220}
+  .tarefa{margin:8px 0 0;font-size:.74rem;color:var(--suave);min-height:3.2em}
+  .rua{position:relative;height:14px;border-radius:7px;background:#16203a;overflow:hidden}
+  .rua::before{content:"";position:absolute;left:0;right:0;top:6px;height:2px;
+    background:repeating-linear-gradient(90deg,#3a4e7d 0 24px,transparent 24px 40px)}
+  .carro{position:absolute;top:2px;width:20px;height:10px;border-radius:4px;background:var(--c);
+    animation:passar var(--v,9s) linear infinite;animation-delay:var(--d)}
+  body.ativo .carro{--v:3.5s}
+  @keyframes passar{from{left:-30px}to{left:100%}}
+  .mensageiro{position:absolute;left:0;top:0;width:16px;height:16px;margin:-8px 0 0 -8px;
+    border-radius:50%;z-index:10;pointer-events:none}
+  .paineis{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  @media (max-width:720px){.paineis{grid-template-columns:1fr}}
+  section.painel{background:#16203a;border:1px solid var(--borda);border-radius:8px;padding:14px 18px}
+  section.painel h3{margin:0 0 8px;font-size:.95rem}
+  ul.lista{list-style:none;margin:0;padding:0;font-size:.82rem;color:var(--suave);display:grid;gap:4px}
+  ul.lista b{color:var(--texto)}
+</style>
+</head>
+<body>
+<header>
+  <h1>🏙️ Cidade de Agentes</h1>
+  <p>Squad Algo trabalhando em tempo real</p>
+  <span id="conexao">conectando…</span>
+</header>
+<main>
+  <div class="linha" id="linha-chefe"></div>
+  <div class="rua">
+    <i class="carro" style="--c:#ffb84d;--d:0s"></i>
+    <i class="carro" style="--c:#4da3ff;--d:-3s"></i>
+    <i class="carro" style="--c:#4ade80;--d:-6s"></i>
+  </div>
+  <div class="linha" id="linha-agentes"></div>
+  <div class="paineis">
+    <section class="painel"><h3>Atividade recente</h3><ul class="lista" id="atividade"></ul></section>
+    <section class="painel"><h3>Entregas do Squad Algo</h3><ul class="lista" id="entregas"></ul></section>
+  </div>
+</main>
+<script>
+const ESTADOS = {
+  ocioso:"Ocioso", trabalhando:"Trabalhando", aguardando_aprovacao:"Aguardando aprovação",
+  concluido:"Concluído", erro:"Erro", negado:"Negado"
+};
+const EVENTOS = {
+  delegou:"recebeu tarefa", respondeu:"respondeu", aguardando_aprovacao:"pediu aprovação",
+  aprovado:"foi aprovado", negado:"foi negado"
+};
+const COR = {trabalhando:"#4da3ff", concluido:"#4ade80", aguardando_aprovacao:"#ffb84d", erro:"#ff6b6b", negado:"#c084fc"};
+let anterior = null, ultima = "";
+
+function criar(tag, classe, texto){
+  const e = document.createElement(tag);
+  if(classe) e.className = classe;
+  if(texto !== undefined) e.textContent = texto;
+  return e;
+}
+function predio(a, grande){
+  const p = criar("div","predio" + (grande ? " grande" : ""));
+  p.dataset.estado = a.estado;
+  p.dataset.id = a.id;
+  const sem = [...a.id].reduce((s,c) => s + c.charCodeAt(0), 0);
+  const j = criar("div","janelas");
+  for(let i=0;i<12;i++){
+    const w = criar("i", (sem + i*7) % 5 < 3 ? "l" : "");
+    w.style.setProperty("--atraso", (((i*37 + sem) % 14) / 10) + "s");
+    j.append(w);
+  }
+  p.append(criar("h2",null,a.nome), criar("div","papel",a.papel), j,
+           criar("span","estado",ESTADOS[a.estado] || a.estado),
+           criar("p","tarefa",a.tarefa || "—"));
+  return p;
+}
+function enviar(deId, paraId, cor){
+  const a = document.querySelector('[data-id="' + deId + '"]');
+  const b = document.querySelector('[data-id="' + paraId + '"]');
+  if(!a || !b) return;
+  const ra = a.getBoundingClientRect(), rb = b.getBoundingClientRect();
+  const x0 = ra.left + ra.width/2 + scrollX, y0 = ra.bottom + scrollY;
+  const x1 = rb.left + rb.width/2 + scrollX, y1 = rb.top + scrollY;
+  const m = criar("div","mensageiro");
+  m.style.background = cor;
+  m.style.boxShadow = "0 0 14px 4px " + cor;
+  document.body.append(m);
+  m.animate(
+    [{transform:"translate(" + x0 + "px," + y0 + "px)"}, {transform:"translate(" + x1 + "px," + y1 + "px)"}],
+    {duration:1400, easing:"ease-in-out"}
+  ).onfinish = () => m.remove();
+}
+function animar(agentes){
+  if(anterior){
+    for(const a of agentes){
+      if(a.id === "chefe" || anterior[a.id] === a.estado) continue;
+      if(a.estado === "trabalhando") enviar("chefe", a.id, COR.trabalhando);
+      else if(COR[a.estado]) enviar(a.id, "chefe", COR[a.estado]);
+    }
+  }
+  anterior = Object.fromEntries(agentes.map(a => [a.id, a.estado]));
+}
+function lista(id, itens, texto){
+  document.getElementById(id).replaceChildren(...itens.map(x => {
+    const li = criar("li");
+    li.append(criar("b",null,x.hora + " "), document.createTextNode(texto(x)));
+    return li;
+  }));
+}
+async function atualizar(){
+  const c = document.getElementById("conexao");
+  try{
+    const r = await fetch("/api/estado",{cache:"no-store"});
+    const d = await r.json();
+    const chave = JSON.stringify(d);
+    if(chave !== ultima){
+      ultima = chave;
+      const chefe = d.agentes.find(a => a.id === "chefe");
+      const demais = d.agentes.filter(a => a.id !== "chefe");
+      document.getElementById("linha-chefe").replaceChildren(predio(chefe,true));
+      document.getElementById("linha-agentes").replaceChildren(...demais.map(a => predio(a,false)));
+      lista("atividade", d.atividade, x => x.agente + " " + (EVENTOS[x.evento] || x.evento));
+      lista("entregas", d.entregas, x => "📄 " + x.arquivo);
+      document.body.classList.toggle("ativo",
+        d.agentes.some(a => a.estado === "trabalhando" || a.estado === "aguardando_aprovacao"));
+      animar(d.agentes);
+    }
+    c.textContent = "● ao vivo"; c.style.color = "var(--concluido)";
+  }catch(e){
+    c.textContent = "● sem conexão"; c.style.color = "var(--erro)";
+  }
+}
+atualizar();
+setInterval(atualizar, 2000);
+</script>
+</body>
+</html>

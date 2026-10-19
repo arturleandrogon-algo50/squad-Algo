@@ -1,0 +1,15 @@
+# Design visual da cidade: estados, cores e animações dos agentes
+
+## Itens
+- Estados e cores (paleta segura para daltonismo, sempre com ícone + rótulo): ocioso = azul-acinzentado #5B7C99 e ícone de lua/pausa; trabalhando = verde #2E9E5B e ícone de engrenagem; com erro = vermelho #D6336C e ícone de triângulo de alerta; aguardando aprovação = âmbar #F59F00 e ícone de relógio/mão levantada. Contraste mínimo 4.5:1 do texto contra o fundo (WCAG AA).
+- Representação na cidade: cada agente é um prédio com janelas e um selo de estado no topo. Ocioso: janelas apagadas, fachada neutra. Trabalhando: janelas acesas e fumaça/engrenagem discreta. Erro: janelas vermelhas e borda tracejada. Aguardando: janelas âmbar e balão com ícone de espera sobre o prédio.
+- Animações (leves, 200-400 ms nas transições): ocioso = respiração sutil de brilho (3 s, opcional); trabalhando = janelas piscando em sequência e engrenagem girando lentamente; erro = um único tremor curto (400 ms) e depois borda vermelha estática, sem piscar contínuo; aguardando = pulso suave do balão (1,5 s). Transição entre estados por fade da cor, animando só o elemento que mudou, coerente com a atualização incremental a cada 2 s.
+- Acessibilidade de movimento e luz: respeitar prefers-reduced-motion (desliga giro, pulso e tremor; mantém só cor, ícone e rótulo). Nenhuma animação acima de 3 flashes por segundo. Estado nunca comunicado só por cor: sempre ícone, texto e padrão de borda (sólida, tracejada, pontilhada).
+- Acessibilidade de leitura e teclado: cada prédio é focável (Tab) com anel de foco visível e aria-label no formato 'Agente X: trabalhando, tarefa Y'. Mudanças de estado anunciadas via aria-live=polite, sem repetir se o estado não mudou. Painel de seleção mostra tarefa atual e últimas 10 atividades em lista textual, com tema claro/escuro e fonte escalável.
+- Comportamentos de borda: se o endpoint do harness falhar ou o atraso passar de 5 s, mostrar faixa discreta 'dados desatualizados' e esmaecer os prédios (sem trocar o estado). Estado 'ocioso' inicial para agentes sem registros, com ícone de pausa. Texto de 'tarefa' e 'resultado' exibido sempre como texto puro, já sanitizado pelo harness, truncado com reticências.
+
+## Alertas
+- O estado 'ocioso' cobre dois casos distintos (sem registros e tarefa concluída com ok); se for preciso diferenciá-los, isso exige decisão de produto, pois a função de derivação aprovada não os separa.
+- Um erro seguido de nova Mensagem volta a 'trabalhando' pela regra derivada; sem histórico visível o erro some rápido da cidade. Sugiro manter o erro nas últimas atividades e, opcionalmente, um selo 'erro recente' (a validar).
+- Casos de borda não definidos na arquitetura: múltiplas Mensagens pendentes para o mesmo agente e Resposta sem Mensagem correspondente. O design assume mostrar apenas a última pendente, com contador de pendências (a confirmar).
+- Os valores de cor e tempo são propostas e precisam ser validados com teste de contraste e com usuários daltônicos antes da implementação.
